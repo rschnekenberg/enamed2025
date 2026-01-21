@@ -36,8 +36,10 @@ def load_data():
     df['pct_proficiencia_display'] = df['pct_proficiencia'] * 100
     # Calculate abstenção (percentage who did NOT participate)
     df['abstencao'] = ((df['n_inscritos'] - df['n_participantes']) / df['n_inscritos'] * 100).round(1)
-    # Make conceito_enade categorical with proper ordering
-    df['conceito_enade'] = df['conceito_enade'].astype(str)
+    # Make conceito_enade categorical (convert to int first to remove decimals, then to string)
+    df['conceito_enade'] = df['conceito_enade'].apply(
+        lambda x: str(int(x)) if pd.notna(x) and x != '' else 'N/A'
+    )
     # Create combined location field
     df['local'] = df['municipio'] + ' (' + df['uf'] + ')'
     # Drop rows with missing essential data
