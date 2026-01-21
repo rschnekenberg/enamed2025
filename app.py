@@ -180,17 +180,18 @@ if len(df_filtered) > 0:
     hover_template = (
         "<b>%{customdata[0]}</b><br>"
         "Local: %{customdata[1]}<br>"
-        "Proficientes: %{customdata[2]:.1f}%<br>"
-        "Conceito ENADE: %{customdata[3]}<br>"
-        "Participantes: %{customdata[4]:.0f}<br>"
-        "Inscritos: %{customdata[5]:.0f}<br>"
-        "Abstenção: %{customdata[6]:.1f}%<br>"
-        "Site: %{customdata[7]}"
+        "Categoria: %{customdata[2]}<br>"
+        "Proficientes: %{customdata[3]:.1f}%<br>"
+        "Conceito ENADE: %{customdata[4]}<br>"
+        "Participantes: %{customdata[5]:.0f}<br>"
+        "Inscritos: %{customdata[6]:.0f}<br>"
+        "Abstenção: %{customdata[7]:.1f}%<br>"
+        "Site: %{customdata[8]}"
         "<extra></extra>"
     )
 
     # Columns for custom_data (passed directly to px.scatter to maintain alignment)
-    custom_data_cols = ['nome_ies', 'local', 'pct_proficiencia_display', 'conceito_enade',
+    custom_data_cols = ['nome_ies', 'local', 'categoria', 'pct_proficiencia_display', 'conceito_enade',
                         'n_participantes', 'n_inscritos', 'abstencao', 'website']
 
     # For Conceito ENADE, sort categories properly
@@ -204,7 +205,6 @@ if len(df_filtered) > 0:
             color=color_col,
             custom_data=custom_data_cols,
             category_orders={"conceito_enade": conceito_order},
-            title="Número de Alunos Concluintes vs Percentual com Proficiência",
             height=600
         )
     else:
@@ -214,7 +214,6 @@ if len(df_filtered) > 0:
             y="pct_proficiencia_display",
             color=color_col,
             custom_data=custom_data_cols,
-            title="Número de Alunos Concluintes vs Percentual com Proficiência",
             height=600
         )
 
@@ -225,7 +224,6 @@ if len(df_filtered) > 0:
     )
 
     fig_scatter.update_layout(
-        title_x=0.5,
         template="plotly_white",
         legend_title=color_by,
         xaxis_title="Número de Alunos Concluintes Participantes",
@@ -337,16 +335,17 @@ if len(df_map) > 0:
     map_hover_template = (
         "<b>%{customdata[0]}</b><br>"
         "Local: %{customdata[1]}<br>"
-        "Proficientes: %{customdata[2]:.1f}%<br>"
-        "Conceito ENADE: %{customdata[3]}<br>"
-        "Participantes: %{customdata[4]:.0f}<br>"
-        "Inscritos: %{customdata[5]:.0f}<br>"
-        "Abstenção: %{customdata[6]:.1f}%<br>"
-        "Site: %{customdata[7]}"
+        "Categoria: %{customdata[2]}<br>"
+        "Proficientes: %{customdata[3]:.1f}%<br>"
+        "Conceito ENADE: %{customdata[4]}<br>"
+        "Participantes: %{customdata[5]:.0f}<br>"
+        "Inscritos: %{customdata[6]:.0f}<br>"
+        "Abstenção: %{customdata[7]:.1f}%<br>"
+        "Site: %{customdata[8]}"
         "<extra></extra>"
     )
 
-    map_custom_data_cols = ['nome_ies', 'local', 'pct_proficiencia_display', 'conceito_enade',
+    map_custom_data_cols = ['nome_ies', 'local', 'categoria', 'pct_proficiencia_display', 'conceito_enade',
                             'n_participantes', 'n_inscritos', 'abstencao', 'website']
 
     fig_map = px.scatter_mapbox(
@@ -369,13 +368,11 @@ if len(df_map) > 0:
     )
 
     fig_map.update_layout(
-        title="Localização das Instituições de Medicina",
-        title_x=0.5,
         coloraxis_colorbar=dict(
             title="Proficientes (%)",
             ticksuffix="%"
         ),
-        margin=dict(l=0, r=0, t=50, b=0)
+        margin=dict(l=0, r=0, t=10, b=0)
     )
 
     st.plotly_chart(fig_map, use_container_width=True)
