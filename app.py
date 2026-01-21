@@ -142,7 +142,7 @@ with col_filters3:
     color_by = st.selectbox(
         "Colorir pontos por",
         options=list(color_options.keys()),
-        index=0
+        index=2
     )
 
 # Participant range slider
@@ -176,7 +176,7 @@ st.caption(f"Mostrando {len(df_filtered)} de {len(df)} cursos")
 if len(df_filtered) > 0:
     color_col = color_options[color_by]
 
-    # Custom hover template
+    # Custom hover template - using custom_data passed to px.scatter
     hover_template = (
         "<b>%{customdata[0]}</b><br>"
         "Local: %{customdata[1]}<br>"
@@ -189,9 +189,9 @@ if len(df_filtered) > 0:
         "<extra></extra>"
     )
 
-    # Prepare custom data array
-    customdata = df_filtered[['nome_ies', 'local', 'pct_proficiencia_display', 'conceito_enade',
-                               'n_participantes', 'n_inscritos', 'abstencao', 'website']].values
+    # Columns for custom_data (passed directly to px.scatter to maintain alignment)
+    custom_data_cols = ['nome_ies', 'local', 'pct_proficiencia_display', 'conceito_enade',
+                        'n_participantes', 'n_inscritos', 'abstencao', 'website']
 
     # For Conceito ENADE, sort categories properly
     if color_by == "Conceito ENADE":
@@ -202,6 +202,7 @@ if len(df_filtered) > 0:
             x="n_participantes",
             y="pct_proficiencia_display",
             color=color_col,
+            custom_data=custom_data_cols,
             category_orders={"conceito_enade": conceito_order},
             title="Número de Alunos Concluintes vs Percentual com Proficiência",
             height=600
@@ -212,13 +213,13 @@ if len(df_filtered) > 0:
             x="n_participantes",
             y="pct_proficiencia_display",
             color=color_col,
+            custom_data=custom_data_cols,
             title="Número de Alunos Concluintes vs Percentual com Proficiência",
             height=600
         )
 
-    # Update with custom hover
+    # Update hover template and marker style
     fig_scatter.update_traces(
-        customdata=customdata,
         hovertemplate=hover_template,
         marker=dict(size=8, opacity=0.7, line=dict(width=0.5, color="white"))
     )
@@ -229,7 +230,7 @@ if len(df_filtered) > 0:
         legend_title=color_by,
         xaxis_title="Número de Alunos Concluintes Participantes",
         yaxis_title="Proficientes (%)",
-        yaxis=dict(range=[0, 100]),
+        yaxis=dict(range=[0, 110]),
         hovermode="closest"
     )
 
@@ -345,14 +346,15 @@ if len(df_map) > 0:
         "<extra></extra>"
     )
 
-    map_customdata = df_map[['nome_ies', 'local', 'pct_proficiencia_display', 'conceito_enade',
-                             'n_participantes', 'n_inscritos', 'abstencao', 'website']].values
+    map_custom_data_cols = ['nome_ies', 'local', 'pct_proficiencia_display', 'conceito_enade',
+                            'n_participantes', 'n_inscritos', 'abstencao', 'website']
 
     fig_map = px.scatter_mapbox(
         df_map,
         lat="lat",
         lon="lon",
         color="pct_proficiencia_display",
+        custom_data=map_custom_data_cols,
         color_continuous_scale=color_scale_options[selected_colorscale],
         range_color=color_range,
         zoom=3,
@@ -362,7 +364,6 @@ if len(df_map) > 0:
     )
 
     fig_map.update_traces(
-        customdata=map_customdata,
         hovertemplate=map_hover_template,
         marker=dict(size=10, opacity=0.8)
     )
