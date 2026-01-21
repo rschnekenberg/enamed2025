@@ -38,6 +38,8 @@ def load_data():
     df['abstencao'] = ((df['n_inscritos'] - df['n_participantes']) / df['n_inscritos'] * 100).round(1)
     # Make conceito_enade categorical with proper ordering
     df['conceito_enade'] = df['conceito_enade'].astype(str)
+    # Create combined location field
+    df['local'] = df['municipio'] + ' (' + df['uf'] + ')'
     # Drop rows with missing essential data
     df = df.dropna(subset=['n_participantes', 'pct_proficiencia'])
     return df
@@ -47,6 +49,15 @@ def load_coordinates():
     """Load pre-computed coordinates from JSON file."""
     try:
         with open('coordinates.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+
+@st.cache_data
+def load_websites():
+    """Load pre-computed university websites from JSON file."""
+    try:
+        with open('websites.json', 'r', encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
         return {}
@@ -64,8 +75,18 @@ def add_coordinates(df, coords):
     )
     return df
 
+def add_websites(df, websites):
+    """Add website URLs to dataframe."""
+    df = df.copy()
+    df['website'] = df['nome_ies'].map(websites).fillna('')
+    return df
+
 df = load_data()
 coords = load_coordinates()
+websites = load_websites()
+
+# Add websites to main dataframe
+df = add_websites(df, websites)
 
 # -------------------------
 # Header
@@ -153,12 +174,27 @@ st.caption(f"Mostrando {len(df_filtered)} de {len(df)} cursos")
 
 # Create scatter plot
 if len(df_filtered) > 0:
-    # Determine if color should be categorical
     color_col = color_options[color_by]
+
+    # Custom hover template
+    hover_template = (
+        "<b>%{customdata[0]}</b><br>"
+        "Local: %{customdata[1]}<br>"
+        "Proficientes: %{customdata[2]:.1f}%<br>"
+        "Conceito ENADE: %{customdata[3]}<br>"
+        "Participantes: %{customdata[4]:.0f}<br>"
+        "Inscritos: %{customdata[5]:.0f}<br>"
+        "Abstenção: %{customdata[6]:.1f}%<br>"
+        "Site: %{customdata[7]}"
+        "<extra></extra>"
+    )
+
+    # Prepare custom data array
+    customdata = df_filtered[['nome_ies', 'local', 'pct_proficiencia_display', 'conceito_enade',
+                               'n_participantes', 'n_inscritos', 'abstencao', 'website']].values
 
     # For Conceito ENADE, sort categories properly
     if color_by == "Conceito ENADE":
-        # Get unique values and sort them
         conceito_order = sorted(df_filtered['conceito_enade'].dropna().unique(),
                                key=lambda x: (x == 'nan', x))
         fig_scatter = px.scatter(
@@ -167,27 +203,6 @@ if len(df_filtered) > 0:
             y="pct_proficiencia_display",
             color=color_col,
             category_orders={"conceito_enade": conceito_order},
-            hover_name="nome_ies",
-            hover_data={
-                "n_participantes": True,
-                "n_inscritos": True,
-                "abstencao": True,
-                "pct_proficiencia_display": ":.1f",
-                "uf": True,
-                "municipio": True,
-                "categoria": True,
-                "conceito_enade": True,
-            },
-            labels={
-                "n_participantes": "Nº de Concluintes Participantes",
-                "n_inscritos": "Nº de Concluintes Inscritos",
-                "abstencao": "Abstenção (%)",
-                "pct_proficiencia_display": "Proficientes (%)",
-                "uf": "UF",
-                "municipio": "Município",
-                "categoria": "Categoria Administrativa",
-                "conceito_enade": "Conceito ENADE"
-            },
             title="Número de Alunos Concluintes vs Percentual com Proficiência",
             height=600
         )
@@ -197,33 +212,14 @@ if len(df_filtered) > 0:
             x="n_participantes",
             y="pct_proficiencia_display",
             color=color_col,
-            hover_name="nome_ies",
-            hover_data={
-                "n_participantes": True,
-                "n_inscritos": True,
-                "abstencao": True,
-                "pct_proficiencia_display": ":.1f",
-                "uf": True,
-                "municipio": True,
-                "categoria": True,
-                "conceito_enade": True,
-                color_col: False  # Hide duplicate
-            },
-            labels={
-                "n_participantes": "Nº de Concluintes Participantes",
-                "n_inscritos": "Nº de Concluintes Inscritos",
-                "abstencao": "Abstenção (%)",
-                "pct_proficiencia_display": "Proficientes (%)",
-                "uf": "UF",
-                "municipio": "Município",
-                "categoria": "Categoria Administrativa",
-                "conceito_enade": "Conceito ENADE"
-            },
             title="Número de Alunos Concluintes vs Percentual com Proficiência",
             height=600
         )
 
+    # Update with custom hover
     fig_scatter.update_traces(
+        customdata=customdata,
+        hovertemplate=hover_template,
         marker=dict(size=8, opacity=0.7, line=dict(width=0.5, color="white"))
     )
 
@@ -233,7 +229,7 @@ if len(df_filtered) > 0:
         legend_title=color_by,
         xaxis_title="Número de Alunos Concluintes Participantes",
         yaxis_title="Proficientes (%)",
-        yaxis=dict(range=[0, 100]),  # Fixed Y-axis range
+        yaxis=dict(range=[0, 100]),
         hovermode="closest"
     )
 
@@ -256,7 +252,6 @@ df_geo = add_coordinates(df, coords)
 col_map_filter1, col_map_filter2 = st.columns(2)
 
 with col_map_filter1:
-    # UF filter for map
     map_uf_options = sorted(df_geo['uf'].dropna().unique().tolist())
     map_selected_ufs = st.multiselect(
         "Filtrar por UF",
@@ -267,7 +262,6 @@ with col_map_filter1:
     )
 
 with col_map_filter2:
-    # Administrative category filter for map
     map_cat_options = sorted(df_geo['categoria'].dropna().unique().tolist())
     map_selected_cats = st.multiselect(
         "Filtrar por Categoria Administrativa",
@@ -290,9 +284,8 @@ if map_selected_cats:
 df_map = df_map_filtered.dropna(subset=['lat', 'lon'])
 
 if len(df_map) > 0:
-    # Calculate weighted statistics for filtered data
+    # Calculate weighted statistics
     total_participantes = df_map['n_participantes'].sum()
-    # Weighted mean: sum(proficiency * participants) / sum(participants)
     weighted_mean_proficiency = (
         (df_map['pct_proficiencia_display'] * df_map['n_participantes']).sum() / total_participantes
     )
@@ -310,7 +303,6 @@ if len(df_map) > 0:
     col_map1, col_map2 = st.columns([1, 2])
 
     with col_map1:
-        # Color scale for proficiency
         color_scale_options = {
             "Viridis": "Viridis",
             "Plasma": "Plasma",
@@ -326,7 +318,6 @@ if len(df_map) > 0:
             index=0
         )
 
-        # Proficiency range for color mapping
         min_pct = float(df_map['pct_proficiencia_display'].min())
         max_pct = float(df_map['pct_proficiencia_display'].max())
 
@@ -341,45 +332,38 @@ if len(df_map) > 0:
     with col_map2:
         st.caption(f"Mostrando {len(df_map)} instituições no mapa")
 
-    # Create map
+    # Custom hover template for map
+    map_hover_template = (
+        "<b>%{customdata[0]}</b><br>"
+        "Local: %{customdata[1]}<br>"
+        "Proficientes: %{customdata[2]:.1f}%<br>"
+        "Conceito ENADE: %{customdata[3]}<br>"
+        "Participantes: %{customdata[4]:.0f}<br>"
+        "Inscritos: %{customdata[5]:.0f}<br>"
+        "Abstenção: %{customdata[6]:.1f}%<br>"
+        "Site: %{customdata[7]}"
+        "<extra></extra>"
+    )
+
+    map_customdata = df_map[['nome_ies', 'local', 'pct_proficiencia_display', 'conceito_enade',
+                             'n_participantes', 'n_inscritos', 'abstencao', 'website']].values
+
     fig_map = px.scatter_mapbox(
         df_map,
         lat="lat",
         lon="lon",
         color="pct_proficiencia_display",
-        size_max=15,
-        hover_name="nome_ies",
-        hover_data={
-            "lat": False,
-            "lon": False,
-            "pct_proficiencia_display": ":.1f",
-            "n_participantes": True,
-            "n_inscritos": True,
-            "abstencao": True,
-            "municipio": True,
-            "uf": True,
-            "categoria": True,
-            "conceito_enade": True
-        },
-        labels={
-            "pct_proficiencia_display": "Proficientes (%)",
-            "n_participantes": "Nº Participantes",
-            "n_inscritos": "Nº Inscritos",
-            "abstencao": "Abstenção (%)",
-            "municipio": "Município",
-            "uf": "UF",
-            "categoria": "Categoria",
-            "conceito_enade": "Conceito ENADE"
-        },
         color_continuous_scale=color_scale_options[selected_colorscale],
         range_color=color_range,
         zoom=3,
-        center={"lat": -14.235, "lon": -51.925},  # Center of Brazil
+        center={"lat": -14.235, "lon": -51.925},
         mapbox_style="carto-positron",
         height=700
     )
 
     fig_map.update_traces(
+        customdata=map_customdata,
+        hovertemplate=map_hover_template,
         marker=dict(size=10, opacity=0.8)
     )
 
