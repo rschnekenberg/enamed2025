@@ -1,13 +1,14 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import numpy as np
 import json
 
 # -------------------------
 # Page config
 # -------------------------
 st.set_page_config(
-    page_title="ENADE Medicina 2025",
+    page_title="ENAMED 2025",
     page_icon="📊",
     layout="wide"
 )
@@ -65,8 +66,17 @@ def load_websites():
         return {}
 
 def add_coordinates(df, coords):
-    """Add lat/lon coordinates to dataframe."""
+    """Add lat/lon coordinates to dataframe with jitter for overlapping points."""
     df = df.copy()
+
+    # Set seed based on index for reproducible jitter
+    np.random.seed(42)
+    n = len(df)
+
+    # Add small random jitter (~0.02 degrees ≈ 2km) to separate overlapping points
+    jitter_lat = np.random.uniform(-0.02, 0.02, n)
+    jitter_lon = np.random.uniform(-0.02, 0.02, n)
+
     df['lat'] = df.apply(
         lambda row: coords.get(f"{row['municipio']}, {row['uf']}", {}).get('lat'),
         axis=1
@@ -75,6 +85,11 @@ def add_coordinates(df, coords):
         lambda row: coords.get(f"{row['municipio']}, {row['uf']}", {}).get('lon'),
         axis=1
     )
+
+    # Apply jitter only to non-null coordinates
+    df.loc[df['lat'].notna(), 'lat'] = df.loc[df['lat'].notna(), 'lat'] + jitter_lat[df['lat'].notna()]
+    df.loc[df['lon'].notna(), 'lon'] = df.loc[df['lon'].notna(), 'lon'] + jitter_lon[df['lon'].notna()]
+
     return df
 
 def add_websites(df, websites):
@@ -93,11 +108,11 @@ df = add_websites(df, websites)
 # -------------------------
 # Header
 # -------------------------
-st.title("📊 ENADE Medicina 2025")
+st.title("📊 ENAMED 2025")
 st.markdown(
     """
     **Explorador interativo dos cursos de Medicina**
-    Dados do Exame Nacional de Desempenho dos Estudantes (ENADE) 2025.
+    Dados do Exame Nacional de Avaliação da Formação Médica (ENAMED) 2025.
     """
 )
 
@@ -388,6 +403,6 @@ else:
 # -------------------------
 st.divider()
 st.caption(
-    "Fonte: INEP / ENADE 2025 – Cursos de Medicina. "
+    "Fonte: INEP / ENAMED 2025 – Cursos de Medicina. "
     "Aplicação desenvolvida em Python (Streamlit + Plotly)."
 )
